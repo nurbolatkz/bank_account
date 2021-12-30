@@ -16,6 +16,7 @@ class NotEnoughAmount(ValueError):
 class NotFoundTransactions(ValueError):
     ...
 
+
 convert_commission = {
     "KZT-USD": 200,
     "USD-KZT": 212,
@@ -49,16 +50,33 @@ class Transaction:
     amount: Decimal = 0.0
     commission: Decimal = 0.0
 
+    @classmethod
+    def database_connect(cls):
+        try:
+            database_con = AccountDatabasePostgres(conn_str)
+            return database_con
+        except Exception as e:
+            print(e)
+
     def withdraw(self, sender: Account, amount) -> None:
         if amount > sender.balance:
             raise NotEnoughAmount("Not enough money in your balance")
         sender.balance = sender.balance - (Decimal(amount) - Decimal(self.commission))
 
-    def deposit(self, receiver: Account, amount) -> None:
+    def deposit(self, receiver: Account, amount, type_transaction: 0) -> None:
+
+        if type_transaction == 0:
+            self.sender = receiver
+            self.receiver = receiver
+            self.balance_brutto = receiver.balance
+
+            receiver.balance = receiver.balance + Decimal(amount)
+            self.save_params(sender=self.receiver, receive=self.receiver, amount=Decimal(amount))
+
         receiver.balance = receiver.balance + Decimal(amount)
 
     def transfer(self, sender_id: UUID, receiver_id:  UUID, amount) -> None:
-        database = AccountDatabasePostgres(conn_str)
+        database = self.database_connect()
         sender = database.get_object(sender_id)
         receiver = database.get_object(receiver_id)
 
@@ -67,20 +85,14 @@ class Transaction:
 
         convert_str = f"{sender.currency}-{receiver.currency}"
         self.commission = 0 if sender.currency == receiver.currency else convert_commission[convert_str]
-
-        self.currency = sender.currency
         self.balance_brutto = sender.balance
+
         self.withdraw(sender, amount)
-        self.balance_netto = sender.balance
+        self.deposit(receiver, amount, 1)
 
-        self.status = "SUCCESS" if (self.balance_brutto - amount == self.balance_netto) else "FAILED"
-        self.date = str(datetime.datetime.now())
+        database.close_connection()
 
-        self.deposit(receiver, amount)
-        self.amount = amount
-
-        database.save(sender)
-        database.save(receiver)
+        self.save_params(sender=sender, receiver=receiver, amount=Decimal(amount))
 
     def to_json(self) -> dict:
         dt = parse(self.date)
@@ -100,5 +112,22 @@ class Transaction:
 
     def to_json_str(self) -> str:
         return json.dumps(self.to_json())
+
+    def save_params(self, sender: Account, receiver: Account, amount: Decimal) -> None:
+        database = self.database_connect()
+
+        self.currency = sender.currency
+        self.balance_netto = sender.balance
+        self.amount = amount
+
+        self.status = "SUCCESS" if (self.balance_brutto - amount == self.balance_netto) else "FAILED"
+        self.date = str(datetime.datetime.now())
+
+        database.save(sender)
+        database.save(receiver)
+
+        database.close_connection()
+
+
 
 
