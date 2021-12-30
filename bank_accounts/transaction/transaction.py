@@ -63,17 +63,19 @@ class Transaction:
             raise NotEnoughAmount("Not enough money in your balance")
         sender.balance = sender.balance - (Decimal(amount) - Decimal(self.commission))
 
-    def deposit(self, receiver: Account, amount, type_transaction: 0) -> None:
+    def deposit(self, receiver: Account, amount, type_transaction: str) -> None:
 
-        if type_transaction == 0:
-            self.sender = receiver
-            self.receiver = receiver
+        if type_transaction == 'Deposit':
+            self.sender = receiver.id_
+            self.receiver = receiver.id_
             self.balance_brutto = receiver.balance
-
             receiver.balance = receiver.balance + Decimal(amount)
-            self.save_params(sender=self.receiver, receive=self.receiver, amount=Decimal(amount))
 
-        receiver.balance = receiver.balance + Decimal(amount)
+            self.save_params(sender=receiver, receiver=receiver,
+                             amount=Decimal(amount),
+                             type_transaction=type_transaction)
+        else:
+            receiver.balance = receiver.balance + Decimal(amount)
 
     def transfer(self, sender_id: UUID, receiver_id:  UUID, amount) -> None:
         database = self.database_connect()
@@ -88,7 +90,7 @@ class Transaction:
         self.balance_brutto = sender.balance
 
         self.withdraw(sender, amount)
-        self.deposit(receiver, amount, 1)
+        self.deposit(receiver, amount, 'withdraw')
 
         database.close_connection()
 
@@ -113,14 +115,17 @@ class Transaction:
     def to_json_str(self) -> str:
         return json.dumps(self.to_json())
 
-    def save_params(self, sender: Account, receiver: Account, amount: Decimal) -> None:
+    def save_params(self, sender: Account, receiver: Account, amount: Decimal, type_transaction: str) -> None:
         database = self.database_connect()
 
         self.currency = sender.currency
         self.balance_netto = sender.balance
         self.amount = amount
-
         self.status = "SUCCESS" if (self.balance_brutto - amount == self.balance_netto) else "FAILED"
+
+        if type_transaction == 'Deposit':
+            self.status = "SUCCESS" if (self.balance_brutto + amount == self.balance_netto) else "FAILED"
+
         self.date = str(datetime.datetime.now())
 
         database.save(sender)
