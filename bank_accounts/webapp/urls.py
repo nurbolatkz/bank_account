@@ -23,5 +23,6 @@ urlpatterns = [
     path('api/accounts/', views.accounts),
     path('accounts/<uuid:sender_id>/', views.transactions),
     path('accounts/add_new_account/', views.add_account),
+    path('accounts/<uuid:sender_id>/transfer/', views.transfer),
 
 ]

@@ -138,6 +138,32 @@ def transactions(request: HttpRequest, sender_id: UUID) -> HttpResponse:
                                                              "success_msg": success_msg })
 
 
+def transfer(request: HttpRequest, sender_id: UUID) -> HttpResponse:
+    account = database.get_object(sender_id)
+    balance = account.balance
+    error = ''
+    database_connected = TransactionDatabasePostgres(connection_str)
+    if request.method == 'POST':
+        transaction_id = uuid4()
+        transaction = Transaction(id_=transaction_id)
+
+        receiver_id = request.POST.get('receiver_id')
+        amount = Decimal(request.POST.get('amount'))
+        try:
+            transaction.transfer(sender_id, receiver_id, amount)
+            database_connected.save(transaction)
+        except Exception as e:
+            error = e
+
+        database_connected.close_connection()
+        account = database.get_object(sender_id)
+        balance = account.balance
+        return render(request, "transfer_page.html", context={"balance": balance, "error": error})
+
+
+    return render(request, "transfer_page.html", context={"balance": balance})
+
+
 
 
 

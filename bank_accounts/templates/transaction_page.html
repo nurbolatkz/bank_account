@@ -8,12 +8,17 @@
 </head>
 <body>
     <h1>Transactions</h1>
+    <h5 style="color: red">{{error}}</h5>
+    <h3 style="color: green">{{success_msg}}</h3>
     <form action="" method="post">
         <h5>Deposit</h5>
         <input type="text" name ="amount" >
         <button type="submit">Add balance</button>
 
     </form>
+    <br>
+    <br>
+    <a href="transfer/" class="btn btn-info">Transfer</a>
     <table class="table table-hover" style="margin: 1em">
 
         {% for transaction in transactions %}

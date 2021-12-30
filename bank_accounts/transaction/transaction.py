@@ -94,7 +94,7 @@ class Transaction:
 
         database.close_connection()
 
-        self.save_params(sender=sender, receiver=receiver, amount=Decimal(amount))
+        self.save_params(sender=sender, receiver=receiver, amount=Decimal(amount), type_transaction='withdraw')
 
     def to_json(self) -> dict:
         dt = parse(self.date)
