@@ -111,20 +111,31 @@ def add_account(request: HttpRequest) -> HttpResponse:
 
 
 def transactions(request: HttpRequest, sender_id: UUID) -> HttpResponse:
-
-    if request.method == 'post':
+    success_msg = ''
+    database_con = TransactionDatabasePostgres(connection_str)
+    if request.method == 'POST':
         id_ = uuid4()
         transaction = Transaction(id_, sender=sender_id)
         amount = request.POST.get('amount')
-        transaction.deposit(sender_id, amount)
-        return HttpResponse(content="Successfully added", status=200)
-    database_con = TransactionDatabasePostgres(connection_str)
+
+        database_account = AccountDatabasePostgres(connection_str)
+        sender = database_account.get_object(sender_id)
+
+        transaction.deposit(sender, amount, 'Deposit')
+        database_account.close_connection()
+        success_msg = "Successfully added"
+        database_con.save(transaction)
+
+    error = ''
+    account_transactions = ''
     try:
         account_transactions = database_con.get_transactions(sender_id)
     except Exception as e:
-        return HttpResponse(content=f"Error: {e}", status=400)
+        error = e
 
-    return render(request, "transaction_page.html", context={"transactions": account_transactions})
+    return render(request, "transaction_page.html", context={"transactions": account_transactions,
+                                                             "error": error,
+                                                             "success_msg": success_msg })
 
 
 
